@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
-import { Sparkles, X, Calendar, MapPin } from 'lucide-react';
+import { Sparkles, X, Calendar, MapPin, Bell } from 'lucide-react';
+import Modal from './common/Modal';
 
 export default function PopupNoticeModal() {
   const [popups, setPopups] = useState([]);
@@ -36,51 +37,46 @@ export default function PopupNoticeModal() {
   const current = popups[currentIndex];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
-        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-brand-600 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-5 h-5 text-yellow-200 animate-pulse" />
-            <h3 className="text-lg font-bold">Community Announcement</h3>
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Community Announcement"
+      subtitle="Important bulletin for all residents"
+      icon={Sparkles}
+      maxWidth="max-w-lg"
+      footer={
+        <button
+          onClick={handleClose}
+          className="px-5 py-2.5 bg-ocean-cyan hover:bg-ocean-cyanHover text-white rounded-xl text-xs font-bold shadow-sm transition"
+        >
+          Understood, Dismiss
+        </button>
+      }
+    >
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold text-content-primary">{current.title}</h2>
 
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-slate-900 mb-2">{current.title}</h2>
-          
-          <div className="flex flex-wrap gap-3 my-3 text-xs font-medium text-slate-600">
-            <span className="flex items-center space-x-1 bg-slate-100 px-2.5 py-1 rounded-md">
-              <Calendar className="w-3.5 h-3.5 text-brand-600" />
-              <span>{new Date(current.eventDate).toLocaleDateString()} at {new Date(current.eventDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <div className="flex flex-wrap gap-2 text-xs font-medium text-content-secondary">
+          <span className="flex items-center space-x-1.5 bg-surface-secondary px-3 py-1.5 rounded-xl border border-line-subtle">
+            <Calendar className="w-3.5 h-3.5 text-ocean-cyan" />
+            <span>
+              {new Date(current.eventDate).toLocaleDateString()} at{' '}
+              {new Date(current.eventDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
-            {current.venue && (
-              <span className="flex items-center space-x-1 bg-slate-100 px-2.5 py-1 rounded-md">
-                <MapPin className="w-3.5 h-3.5 text-orange-600" />
-                <span>{current.venue}</span>
-              </span>
-            )}
-          </div>
+          </span>
 
-          <p className="text-sm text-slate-600 leading-relaxed mt-3 whitespace-pre-line">
-            {current.description}
-          </p>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={handleClose}
-              className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold shadow-sm transition"
-            >
-              Got it, thanks!
-            </button>
-          </div>
+          {current.venue && (
+            <span className="flex items-center space-x-1.5 bg-surface-secondary px-3 py-1.5 rounded-xl border border-line-subtle">
+              <MapPin className="w-3.5 h-3.5 text-ocean-violet" />
+              <span>{current.venue}</span>
+            </span>
+          )}
         </div>
+
+        <p className="text-sm text-content-secondary leading-relaxed pt-2 whitespace-pre-line border-t border-line-subtle/50">
+          {current.description}
+        </p>
       </div>
-    </div>
+    </Modal>
   );
 }

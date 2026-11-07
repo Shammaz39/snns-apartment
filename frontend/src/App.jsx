@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import api from './api/client';
 
 import Navbar from './components/Navbar';
@@ -24,6 +25,7 @@ import EmergencyContactsPage from './pages/EmergencyContactsPage';
 function ProtectedLayout() {
   const { user, isAdmin, isSecurity, loading } = useAuth();
   const [apartmentName, setApartmentName] = useState('SNNS Apartment');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     api.get('/settings/public')
@@ -35,7 +37,7 @@ function ProtectedLayout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 text-sm font-semibold">
+      <div className="min-h-screen flex items-center justify-center bg-app text-content-secondary text-sm font-semibold animate-pulse">
         Loading SNNS Apartment Platform...
       </div>
     );
@@ -46,13 +48,20 @@ function ProtectedLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar apartmentName={apartmentName} />
+    <div className="min-h-screen bg-app flex flex-col transition-colors duration-200">
+      <Navbar
+        apartmentName={apartmentName}
+        onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+        isMobileMenuOpen={mobileMenuOpen}
+      />
       <PopupNoticeModal />
 
       <div className="flex-1 flex flex-col md:flex-row">
-        <Sidebar />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        <Sidebar
+          mobileOpen={mobileMenuOpen}
+          onMobileClose={() => setMobileMenuOpen(false)}
+        />
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full transition-colors duration-200">
           <Routes>
             {isAdmin ? (
               <>
@@ -94,13 +103,15 @@ function ProtectedLayout() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/*" element={<ProtectedLayout />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={<ProtectedLayout />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

@@ -5,8 +5,14 @@ import {
   QrCode, Upload, CheckCircle2, Clock, XCircle, FileText,
   Wrench, Sparkles, Calendar, AlertCircle, Phone, PhoneCall,
   UserCheck, Shield, Check, X, User, Edit3, Image, FileBadge,
-  Zap, ShoppingCart, HeartPulse, ShieldAlert, Flame
+  Zap, ShoppingCart, HeartPulse, ShieldAlert, Flame, BellRing,
+  Lock, ArrowRight, ShieldCheck, CreditCard
 } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
+import StatusBadge from '../components/common/StatusBadge';
+import Modal from '../components/common/Modal';
+import EmptyState from '../components/common/EmptyState';
+import { CardSkeleton } from '../components/common/LoadingSkeleton';
 
 export default function ResidentPortal() {
   const { user } = useAuth();
@@ -143,7 +149,7 @@ export default function ResidentPortal() {
         expectedVisitTime: preExpectedTime || null
       });
 
-      setPreSuccess(`✓ Expected visitor ${preVisitorName} pre-approved! Security will allow entry.`);
+      setPreSuccess(`✓ Expected visitor "${preVisitorName}" pre-approved! Security will allow seamless entry.`);
       setPreVisitorName('');
       setPrePhone('');
       setPreVehicle('');
@@ -172,7 +178,7 @@ export default function ResidentPortal() {
 
       setProfile(res.data);
       setEditingProfile(false);
-      setProfSuccess('✓ Profile updated successfully!');
+      setProfSuccess('✓ Profile & KYC details updated successfully!');
       setTimeout(() => setProfSuccess(''), 4000);
     } catch (err) {
       alert('Failed to update profile: ' + (err.response?.data?.message || err.message));
@@ -231,13 +237,13 @@ export default function ResidentPortal() {
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'PLUMBER': return <Wrench className="w-4 h-4 text-blue-600" />;
+      case 'PLUMBER': return <Wrench className="w-4 h-4 text-ocean-cyan" />;
       case 'ELECTRICIAN': return <Zap className="w-4 h-4 text-amber-500" />;
-      case 'SUPERMARKET': return <ShoppingCart className="w-4 h-4 text-emerald-600" />;
-      case 'HOSPITAL': return <HeartPulse className="w-4 h-4 text-red-600" />;
-      case 'POLICE': return <ShieldAlert className="w-4 h-4 text-indigo-600" />;
-      case 'FIRE': return <Flame className="w-4 h-4 text-orange-600" />;
-      default: return <Phone className="w-4 h-4 text-slate-600" />;
+      case 'SUPERMARKET': return <ShoppingCart className="w-4 h-4 text-emerald-500" />;
+      case 'HOSPITAL': return <HeartPulse className="w-4 h-4 text-rose-500" />;
+      case 'POLICE': return <ShieldAlert className="w-4 h-4 text-ocean-violet" />;
+      case 'FIRE': return <Flame className="w-4 h-4 text-orange-500" />;
+      default: return <Phone className="w-4 h-4 text-content-light-secondary dark:text-content-dark-secondary" />;
     }
   };
 
@@ -250,17 +256,17 @@ export default function ResidentPortal() {
       {unreadNotifications.map((n) => (
         <div
           key={n.id}
-          className="p-4 bg-amber-500 text-white rounded-2xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-bounce"
+          className="p-4 rounded-2xl bg-amber-500 text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse border border-amber-400"
         >
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <UserCheck className="w-6 h-6 text-white" />
+            <div className="p-2.5 bg-white/20 rounded-xl">
+              <BellRing className="w-6 h-6 text-white" />
             </div>
             <div>
-              <div className="font-extrabold text-sm uppercase tracking-wide">
-                🔔 Gate Visitor Entry Request
+              <div className="font-extrabold text-xs uppercase tracking-wider text-amber-100">
+                Gate Entry Request • Immediate Action Needed
               </div>
-              <div className="text-xs text-amber-50 mt-0.5">{n.message}</div>
+              <div className="text-sm font-bold text-white mt-0.5">{n.message}</div>
             </div>
           </div>
           <div className="flex items-center space-x-2 shrink-0 w-full sm:w-auto">
@@ -273,7 +279,7 @@ export default function ResidentPortal() {
             </button>
             <button
               onClick={() => handleRejectVisitor(n.id, n.relatedId)}
-              className="flex-1 sm:flex-none px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm transition"
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm transition"
             >
               <X className="w-4 h-4" />
               <span>Deny</span>
@@ -282,25 +288,36 @@ export default function ResidentPortal() {
         </div>
       ))}
 
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-brand-900 to-slate-900 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Welcome, {profile?.fullName || user?.fullName || 'Resident'}!</h2>
-          <p className="text-brand-200 text-sm mt-1">
-            Room #{user?.roomNumber || '101'} • {settings?.apartmentName || 'SNNS Apartment'}
-          </p>
+      {/* Resident Hero Banner */}
+      <div className="relative overflow-hidden p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-ocean-deep via-ocean-deep/95 to-slate-900 text-white shadow-lg border border-ocean-cyan/20">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-ocean-cyan/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-ocean-cyan/20 text-ocean-cyan border border-ocean-cyan/30 text-xs font-bold">
+              <span>Unit #{user?.roomNumber || '101'}</span>
+              <span>•</span>
+              <span>{settings?.apartmentName || 'SNNS Apartment'}</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Welcome, {profile?.fullName || user?.fullName || 'Resident'}
+            </h2>
+            <p className="text-xs sm:text-sm text-content-dark-secondary max-w-xl">
+              Pay monthly maintenance bills, pre-approve visitor gate passes, raise service tickets, and manage KYC documents.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setEditingProfile(!editingProfile)}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/20 text-white transition flex items-center space-x-2 backdrop-blur-sm"
+          >
+            <User className="w-4 h-4 text-ocean-cyan" />
+            <span>{editingProfile ? 'Close Profile View' : 'My Resident Profile & KYC'}</span>
+          </button>
         </div>
-        <button
-          onClick={() => setEditingProfile(!editingProfile)}
-          className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition flex items-center space-x-2"
-        >
-          <User className="w-4 h-4" />
-          <span>{editingProfile ? 'Close Profile View' : 'My Resident Profile & KYC'}</span>
-        </button>
       </div>
 
       {profSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-medium flex items-center space-x-2">
+        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center space-x-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{profSuccess}</span>
         </div>
@@ -308,86 +325,100 @@ export default function ResidentPortal() {
 
       {/* Profile & KYC View / Edit Modal/Section */}
       {editingProfile && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="p-6 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-md space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border-light dark:border-border-dark">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Resident Profile & Aadhaar KYC</h3>
-              <p className="text-xs text-slate-500">View and update your personal info, photo, and identity documents.</p>
+              <h3 className="text-base font-bold text-content-light-primary dark:text-content-dark-primary">
+                Resident Profile & Aadhaar KYC
+              </h3>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
+                View and update your personal info, photo, and identity documents.
+              </p>
             </div>
-            <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full border border-brand-200">
-              Room {user?.roomNumber}
+            <span className="text-xs font-black text-ocean-cyan bg-ocean-cyan/15 px-3 py-1 rounded-full border border-ocean-cyan/30">
+              Unit #{user?.roomNumber}
             </span>
           </div>
 
           <form onSubmit={handleProfileUpdate} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Full Name</label>
+                <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                  Full Name
+                </label>
                 <input
                   type="text"
                   required
                   value={profName}
                   onChange={(e) => setProfName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Mobile Phone</label>
+                <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                  Mobile Phone
+                </label>
                 <input
                   type="text"
                   required
                   value={profPhone}
                   onChange={(e) => setProfPhone(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Email Address</label>
+                <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                  Email Address
+                </label>
                 <input
                   type="email"
                   value={profEmail}
                   onChange={(e) => setProfEmail(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 uppercase mb-1">Aadhaar Card Number</label>
+                <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                  Aadhaar Card Number
+                </label>
                 <input
                   type="text"
                   value={profAadhaar}
                   onChange={(e) => setProfAadhaar(e.target.value)}
                   placeholder="e.g. 1234-5678-9012"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 font-mono"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none font-mono"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase mb-1">Family Members / Roommates Details</label>
+              <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                Family Members / Roommates Details
+              </label>
               <textarea
                 rows="2"
                 value={profMembers}
                 onChange={(e) => setProfMembers(e.target.value)}
                 placeholder="e.g. Spouse (Anju), Child (Aarav)"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none resize-none"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center space-x-1.5">
-                  <Image className="w-4 h-4 text-brand-600" />
+              <div className="p-4 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark">
+                <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1.5 flex items-center space-x-1.5">
+                  <Image className="w-4 h-4 text-ocean-cyan" />
                   <span>Update Profile Photo</span>
                 </label>
                 {profile?.photoPath && (
-                  <div className="mb-2">
+                  <div className="mb-3">
                     <img
                       src={`/api/files/${profile.photoPath}`}
                       alt="Profile"
-                      className="w-16 h-16 object-cover rounded-xl border border-slate-200"
+                      className="w-16 h-16 object-cover rounded-xl border border-border-light dark:border-border-dark"
                     />
                   </div>
                 )}
@@ -395,24 +426,25 @@ export default function ResidentPortal() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setPhotoFile(e.target.files[0])}
-                  className="text-xs text-slate-600"
+                  className="text-xs text-content-light-secondary dark:text-content-dark-secondary"
                 />
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="block font-bold text-slate-700 uppercase mb-1 flex items-center space-x-1.5">
-                  <FileBadge className="w-4 h-4 text-indigo-600" />
+              <div className="p-4 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark">
+                <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1.5 flex items-center space-x-1.5">
+                  <FileBadge className="w-4 h-4 text-ocean-violet" />
                   <span>Update Aadhaar Document</span>
                 </label>
                 {profile?.aadhaarDocPath && (
-                  <div className="mb-2">
+                  <div className="mb-3">
                     <a
                       href={`/api/files/${profile.aadhaarDocPath}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs font-bold text-indigo-600 hover:underline"
+                      className="text-xs font-bold text-ocean-cyan hover:underline flex items-center space-x-1"
                     >
-                      View Uploaded Document
+                      <span>View Uploaded KYC Document</span>
+                      <ArrowRight className="w-3 h-3" />
                     </a>
                   </div>
                 )}
@@ -420,7 +452,7 @@ export default function ResidentPortal() {
                   type="file"
                   accept="image/*,application/pdf"
                   onChange={(e) => setAadhaarFile(e.target.files[0])}
-                  className="text-xs text-slate-600"
+                  className="text-xs text-content-light-secondary dark:text-content-dark-secondary"
                 />
               </div>
             </div>
@@ -428,14 +460,14 @@ export default function ResidentPortal() {
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="submit"
-                className="py-2.5 px-5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-xs transition"
+                className="py-2.5 px-5 bg-ocean-cyan hover:bg-ocean-cyan/90 text-white font-bold rounded-xl shadow-xs transition"
               >
                 Save Profile Changes
               </button>
               <button
                 type="button"
                 onClick={() => setEditingProfile(false)}
-                className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition"
+                className="py-2.5 px-4 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary text-content-light-secondary dark:text-content-dark-secondary font-bold transition border border-border-light dark:border-border-dark"
               >
                 Cancel
               </button>
@@ -449,81 +481,87 @@ export default function ResidentPortal() {
         {/* Left Column (2 Cols): Bill Overview & Pre-Approve Visitor */}
         <div className="lg:col-span-2 space-y-6">
           {/* Pre-Approve Visitor Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="p-6 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border-light dark:border-border-dark">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
-                  <UserCheck className="w-4 h-4 text-emerald-600" />
+                <h3 className="font-bold text-content-light-primary dark:text-content-dark-primary text-sm flex items-center space-x-2">
+                  <UserCheck className="w-4 h-4 text-emerald-500" />
                   <span>Pre-Approve Expected Visitor</span>
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Pre-register guests or delivery couriers so the security guard allows seamless entry without calling you.
+                <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
+                  Pre-register guests or delivery couriers so the security guard allows seamless entry without intercom delay.
                 </p>
               </div>
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                 Gate Pass
               </span>
             </div>
 
             {preSuccess && (
-              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold">
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
                 {preSuccess}
               </div>
             )}
             {preError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-bold">
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold">
                 {preError}
               </div>
             )}
 
-            <div className="mb-3 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+            <div className="p-3 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                <span className="text-[10px] font-bold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wider block">
                   Designated Flat (Locked to Your Unit)
                 </span>
-                <span className="text-sm font-extrabold text-brand-700">
-                  Room {user?.roomNumber || '101'}
+                <span className="text-sm font-black text-ocean-cyan">
+                  Room #{user?.roomNumber || '101'}
                 </span>
               </div>
-              <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200 flex items-center space-x-1">
-                <span>🔒</span>
-                <span>Only your flat</span>
+              <span className="text-[11px] font-semibold text-content-light-secondary dark:text-content-dark-secondary bg-surface-light dark:bg-surface-dark px-2.5 py-1 rounded-lg border border-border-light dark:border-border-dark flex items-center space-x-1.5">
+                <Lock className="w-3 h-3 text-ocean-cyan" />
+                <span>Unit Authenticated</span>
               </span>
             </div>
 
-            <form onSubmit={handlePreApproveSubmit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handlePreApproveSubmit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Visitor Full Name</label>
+                  <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Visitor Full Name
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Suresh Nair"
                     value={preVisitorName}
                     onChange={(e) => setPreVisitorName(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Visitor Phone</label>
+                  <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Visitor Phone
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="+91 9845011223"
                     value={prePhone}
                     onChange={(e) => setPrePhone(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none font-mono"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Purpose</label>
+                  <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Purpose
+                  </label>
                   <select
                     value={prePurpose}
                     onChange={(e) => setPrePurpose(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                   >
                     <option value="GUEST">Guest / Relative</option>
                     <option value="DELIVERY">Delivery Agent</option>
@@ -533,22 +571,26 @@ export default function ResidentPortal() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Vehicle (Optional)</label>
+                  <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Vehicle (Optional)
+                  </label>
                   <input
                     type="text"
                     placeholder="e.g. KL-07-AA-1111"
                     value={preVehicle}
                     onChange={(e) => setPreVehicle(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none uppercase font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase mb-1">Expected Time (Optional)</label>
+                  <label className="block font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Expected Time (Optional)
+                  </label>
                   <input
                     type="datetime-local"
                     value={preExpectedTime}
                     onChange={(e) => setPreExpectedTime(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                   />
                 </div>
               </div>
@@ -558,81 +600,68 @@ export default function ResidentPortal() {
                 className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center space-x-1.5"
               >
                 <Check className="w-4 h-4" />
-                <span>Pre-Approve Visitor for Room {user?.roomNumber}</span>
+                <span>Pre-Approve Visitor for Unit #{user?.roomNumber}</span>
               </button>
             </form>
           </div>
 
           {/* Current Bill Section */}
           {latestBill ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+            <div className="p-6 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border-light dark:border-border-dark gap-2">
                 <div>
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Due</span>
-                  <h3 className="text-xl font-bold text-slate-900">
+                  <span className="text-xs font-bold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wider">
+                    Current Statement
+                  </span>
+                  <h3 className="text-xl font-black text-content-light-primary dark:text-content-dark-primary">
                     Maintenance & Rent Bill ({latestBill.billingMonth})
                   </h3>
                 </div>
 
-                <span
-                  className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                    latestBill.status === 'PAID'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : latestBill.status === 'PENDING_VERIFICATION'
-                      ? 'bg-amber-100 text-amber-800 animate-pulse'
-                      : latestBill.status === 'REJECTED'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-blue-100 text-blue-800'
-                  }`}
-                >
-                  {latestBill.status === 'PAID' && <CheckCircle2 className="w-4 h-4" />}
-                  {latestBill.status === 'PENDING_VERIFICATION' && <Clock className="w-4 h-4" />}
-                  {latestBill.status === 'REJECTED' && <XCircle className="w-4 h-4" />}
-                  <span>{latestBill.status}</span>
-                </span>
+                <StatusBadge status={latestBill.status} />
               </div>
 
               {/* Breakdown */}
-              <div className="grid grid-cols-3 gap-3 my-4">
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-500 font-medium">Room Rent</span>
-                  <p className="text-sm font-bold text-slate-900">₹{latestBill.rentAmount}</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark">
+                  <span className="text-xs text-content-light-secondary dark:text-content-dark-secondary font-medium">Room Rent</span>
+                  <p className="text-sm font-bold text-content-light-primary dark:text-content-dark-primary mt-0.5">₹{latestBill.rentAmount}</p>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-500 font-medium">Lift Maintenance</span>
-                  <p className="text-sm font-bold text-slate-900">₹{latestBill.liftMaintenanceFee}</p>
+                <div className="p-3.5 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark">
+                  <span className="text-xs text-content-light-secondary dark:text-content-dark-secondary font-medium">Lift Maintenance</span>
+                  <p className="text-sm font-bold text-content-light-primary dark:text-content-dark-primary mt-0.5">₹{latestBill.liftMaintenanceFee}</p>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-500 font-medium">Waste Management</span>
-                  <p className="text-sm font-bold text-slate-900">₹{latestBill.wasteManagementFee}</p>
+                <div className="p-3.5 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark">
+                  <span className="text-xs text-content-light-secondary dark:text-content-dark-secondary font-medium">Waste Management</span>
+                  <p className="text-sm font-bold text-content-light-primary dark:text-content-dark-primary mt-0.5">₹{latestBill.wasteManagementFee}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-brand-50 rounded-xl border border-brand-100">
-                <span className="text-sm font-bold text-brand-900">Total Payable Amount</span>
-                <span className="text-2xl font-black text-brand-800">₹{latestBill.totalAmount}</span>
+              <div className="flex items-center justify-between p-4 rounded-xl bg-ocean-cyan/10 border border-ocean-cyan/20">
+                <span className="text-sm font-bold text-ocean-deep dark:text-ocean-cyan">Total Payable Amount</span>
+                <span className="text-2xl font-black text-ocean-cyan">₹{latestBill.totalAmount}</span>
               </div>
 
               {/* Status Notice */}
               {latestBill.status === 'PENDING_VERIFICATION' && (
-                <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs">
+                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs">
                   <p className="font-bold flex items-center space-x-1.5">
-                    <Clock className="w-4 h-4 text-amber-600" />
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span>Payment Verification Pending</span>
                   </p>
                   <p className="mt-1">
-                    Your payment receipt (UTR: <strong>{latestBill.transactionRef}</strong>) has been submitted to the Admin. It will be marked as PAID once verified.
+                    Your payment receipt (UTR: <strong>{latestBill.transactionRef}</strong>) has been submitted to Admin. It will be marked as PAID once verified.
                   </p>
                 </div>
               )}
 
               {latestBill.status === 'PAID' && (
-                <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 text-xs">
+                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs">
                   <p className="font-bold flex items-center space-x-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Payment Confirmed & Verified</span>
                   </p>
-                  <p className="mt-1 text-emerald-800">
+                  <p className="mt-1">
                     Paid on: {new Date(latestBill.paidAt || Date.now()).toLocaleDateString()}. Thank you!
                   </p>
                 </div>
@@ -640,13 +669,14 @@ export default function ResidentPortal() {
 
               {/* Submit Receipt Form (if not PAID) */}
               {latestBill.status !== 'PAID' && (
-                <form onSubmit={handlePaymentSubmit} className="mt-6 pt-5 border-t border-slate-100 space-y-4">
-                  <h4 className="text-sm font-bold text-slate-900">
-                    Step 2: Upload Payment Proof (Screenshot & UTR)
+                <form onSubmit={handlePaymentSubmit} className="pt-4 border-t border-border-light dark:border-border-dark space-y-4">
+                  <h4 className="text-sm font-bold text-content-light-primary dark:text-content-dark-primary flex items-center space-x-2">
+                    <CreditCard className="w-4 h-4 text-ocean-cyan" />
+                    <span>Step 2: Upload Payment Proof (Screenshot & UTR)</span>
                   </h4>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1.5">
                       UPI Transaction ID / UTR Number
                     </label>
                     <input
@@ -655,26 +685,26 @@ export default function ResidentPortal() {
                       placeholder="e.g. 329048192849"
                       value={transactionRef}
                       onChange={(e) => setTransactionRef(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 font-mono"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1.5">
                       Payment Screenshot / Receipt
                     </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => setReceiptFile(e.target.files[0])}
-                      className="text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+                      className="w-full text-xs text-content-light-secondary dark:text-content-dark-secondary file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-ocean-cyan/15 file:text-ocean-cyan hover:file:bg-ocean-cyan/25"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50"
+                    className="w-full py-2.5 px-4 bg-ocean-cyan hover:bg-ocean-cyan/90 text-white rounded-xl text-xs font-bold shadow-xs transition disabled:opacity-50"
                   >
                     {submitting ? 'Submitting Receipt...' : 'Submit Payment for Verification'}
                   </button>
@@ -682,34 +712,40 @@ export default function ResidentPortal() {
               )}
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center text-slate-400">
-              <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-500 mb-2" />
-              <p className="font-bold text-slate-800">No pending bills for your room!</p>
-              <p className="text-xs mt-1">All maintenance fees and rent are up to date.</p>
-            </div>
+            <EmptyState
+              icon={CheckCircle2}
+              title="No pending bills for your room"
+              description="All maintenance fees and room rents are completely up to date."
+            />
           )}
 
           {/* Service Request / Complaint Box */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <h3 className="font-bold text-slate-900 mb-1">Lodge Maintenance Request</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Report plumbing leaks, electrical issues, or lift maintenance to the apartment manager.
-            </p>
+          <div className="p-6 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs space-y-4">
+            <div>
+              <h3 className="font-bold text-content-light-primary dark:text-content-dark-primary text-base">
+                Lodge Maintenance Ticket
+              </h3>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
+                Report plumbing leaks, electrical repairs, or lift issues to the apartment management.
+              </p>
+            </div>
 
             {complaintSuccess && (
-              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-bold">
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
                 ✓ Complaint submitted successfully! The manager has been alerted.
               </div>
             )}
 
-            <form onSubmit={handleLodgeComplaint} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleLodgeComplaint} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Issue Category</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Issue Category
+                  </label>
                   <select
                     value={complaintCategory}
                     onChange={(e) => setComplaintCategory(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                   >
                     <option value="PLUMBING">Plumbing (Water / Tap / Pipes)</option>
                     <option value="ELECTRICAL">Electrical (Switch / Wiring / Lights)</option>
@@ -719,35 +755,39 @@ export default function ResidentPortal() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Summary Title</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                    Summary Title
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Bathroom tap leaking"
                     value={complaintTitle}
                     onChange={(e) => setComplaintTitle(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Detailed Description</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                  Detailed Description
+                </label>
                 <textarea
                   rows="2"
                   required
                   placeholder="Describe the issue in detail..."
                   value={complaintDesc}
                   onChange={(e) => setComplaintDesc(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
-                ></textarea>
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none resize-none"
+                />
               </div>
 
               <button
                 type="submit"
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-ocean-deep text-white hover:bg-ocean-deep/90 shadow-xs transition"
               >
-                Submit Ticket
+                Submit Maintenance Ticket
               </button>
             </form>
           </div>
@@ -756,28 +796,39 @@ export default function ResidentPortal() {
         {/* Right Column (1 Col): Emergency Contacts & Scan UPI */}
         <div className="space-y-6">
           {/* Emergency Helplines & Contacts Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-1.5">
-                <PhoneCall className="w-4 h-4 text-indigo-600" />
+          <div className="p-5 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border-light dark:border-border-dark">
+              <h3 className="font-bold text-content-light-primary dark:text-content-dark-primary text-sm flex items-center space-x-1.5">
+                <PhoneCall className="w-4 h-4 text-ocean-cyan" />
                 <span>Emergency Helplines</span>
               </h3>
-              <span className="text-[10px] text-slate-400 font-semibold">Click to Call</span>
+              <span className="text-[10px] text-content-light-secondary dark:text-content-dark-secondary font-semibold">
+                Click to Call
+              </span>
             </div>
 
             {emergencyContacts.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No emergency numbers published yet.</p>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary italic">
+                No emergency numbers published yet.
+              </p>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {emergencyContacts.map((c) => (
-                  <div key={c.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-150 flex items-center justify-between gap-2">
+                  <div
+                    key={c.id}
+                    className="p-2.5 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark flex items-center justify-between gap-2"
+                  >
                     <div className="flex items-center space-x-2">
-                      <div className="p-1.5 rounded-lg bg-white border border-slate-200">
+                      <div className="p-1.5 rounded-lg bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
                         {getTypeIcon(c.contactType)}
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900 text-xs">{c.name}</div>
-                        <div className="text-[10px] text-slate-500">{c.contactType}</div>
+                        <div className="font-bold text-content-light-primary dark:text-content-dark-primary text-xs">
+                          {c.name}
+                        </div>
+                        <div className="text-[10px] text-content-light-secondary dark:text-content-dark-secondary">
+                          {c.contactType}
+                        </div>
                       </div>
                     </div>
                     <a
@@ -794,35 +845,39 @@ export default function ResidentPortal() {
           </div>
 
           {/* Official UPI QR Code */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 text-center">
-            <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-1">
+          <div className="p-6 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs text-center space-y-3">
+            <span className="text-xs font-bold text-ocean-cyan uppercase tracking-wider block">
               Step 1: Scan & Pay
             </span>
-            <h3 className="font-extrabold text-slate-900 mb-1">Apartment UPI QR Code</h3>
-            <p className="text-xs text-slate-500 mb-4">
+            <h3 className="font-black text-content-light-primary dark:text-content-dark-primary text-base">
+              Apartment UPI QR Code
+            </h3>
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
               Scan with GPay, PhonePe, Paytm, or any UPI app.
             </p>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-150 inline-block mb-3">
+            <div className="p-4 rounded-2xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark inline-block">
               {qrUrl ? (
                 <img
                   src={qrUrl}
                   alt="Apartment UPI QR"
-                  className="w-48 h-48 object-contain mx-auto rounded-lg"
+                  className="w-48 h-48 object-contain mx-auto rounded-xl bg-white p-2"
                 />
               ) : (
-                <div className="w-48 h-48 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-4">
-                  <QrCode className="w-16 h-16 text-slate-300 mb-2" />
-                  <span className="text-xs font-semibold text-slate-400">
+                <div className="w-48 h-48 bg-surface-light dark:bg-surface-dark border-2 border-dashed border-border-light dark:border-border-dark rounded-xl flex flex-col items-center justify-center p-4">
+                  <QrCode className="w-16 h-16 text-content-light-secondary/40 dark:text-content-dark-secondary/40 mb-2" />
+                  <span className="text-xs font-semibold text-content-light-secondary dark:text-content-dark-secondary">
                     Admin has not uploaded custom QR image yet
                   </span>
                 </div>
               )}
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <span className="text-[11px] text-slate-400 uppercase font-semibold">Official UPI ID</span>
-              <p className="text-xs font-mono font-bold text-slate-900 mt-0.5">
+            <div className="p-3 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark">
+              <span className="text-[11px] text-content-light-secondary dark:text-content-dark-secondary uppercase font-semibold">
+                Official UPI ID
+              </span>
+              <p className="text-xs font-mono font-bold text-ocean-cyan mt-0.5">
                 {settings?.upiId || 'snnsapartment@okaxis'}
               </p>
             </div>

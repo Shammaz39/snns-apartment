@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
-import { 
-  Shield, UserCheck, LogOut, Clock, Car, DoorClosed, 
-  AlertCircle, CheckCircle2, History, Plus, Check, X,
-  Users, Search, Calendar, BadgeCheck, FileText
+import {
+  Shield,
+  UserCheck,
+  LogOut,
+  Clock,
+  Car,
+  DoorClosed,
+  AlertCircle,
+  CheckCircle2,
+  History,
+  Plus,
+  Check,
+  X,
+  Users,
+  Search,
+  Calendar,
+  BadgeCheck,
+  FileText,
+  Phone,
+  PhoneCall,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import PageHeader from '../components/common/PageHeader';
+import StatusBadge from '../components/common/StatusBadge';
+import Modal from '../components/common/Modal';
+import EmptyState from '../components/common/EmptyState';
+import { TableSkeleton } from '../components/common/LoadingSkeleton';
 
 export default function GatekeeperPage() {
   const { user, isSecurity, isAdmin } = useAuth();
@@ -17,7 +39,8 @@ export default function GatekeeperPage() {
   const [loading, setLoading] = useState(true);
 
   // Form states
-  const [entryMode, setEntryMode] = useState('CALL_CONFIRMED'); // 'CALL_CONFIRMED' (Security verified) or 'REQUEST_ENTRY' (In-app resident approval)
+  const [showEntryModal, setShowEntryModal] = useState(false);
+  const [entryMode, setEntryMode] = useState('CALL_CONFIRMED'); // 'CALL_CONFIRMED' or 'REQUEST_ENTRY'
   const [visitorName, setVisitorName] = useState('');
   const [phone, setPhone] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
@@ -56,7 +79,7 @@ export default function GatekeeperPage() {
       const passes = passesRes.data || [];
       setAllPasses(passes);
       setActivePasses(passes.filter(p => p.status === 'CHECKED_IN'));
-      
+
       const allR = roomsRes.data || [];
       setRooms(allR);
       setDirectory(dirRes.data || []);
@@ -99,34 +122,30 @@ export default function GatekeeperPage() {
       };
 
       if (entryMode === 'CALL_CONFIRMED') {
-        // Direct entry: Security approved with internal confirmation note
         await api.post('/visitor-passes/call-confirmed', payload);
-        // Also sync legacy /visitors/check-in
-        api.post('/visitors/check-in', { visitorName, phone, vehicleNumber, roomNumber, purpose }).catch(() => {});
-        setSuccess(`✓ Checked in ${visitorName} for Room ${roomNumber} (Security Verified by ${guardName})`);
+        setSuccess(`✅ Visitor ${visitorName} directly checked in! Audit note logged.`);
       } else {
-        // Request in-app resident approval
         await api.post('/visitor-passes/request', payload);
-        setSuccess(`✓ Entry request sent to resident of Room ${roomNumber}. Waiting for approval!`);
-        setTab('PENDING');
+        setSuccess(`🔔 Approval request sent to Resident of Room ${roomNumber}! Entry pending resident confirmation.`);
       }
 
+      setShowEntryModal(false);
       setVisitorName('');
       setPhone('');
       setVehicleNumber('');
       loadData();
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to process visitor pass');
+      setError(err.response?.data?.message || err.message || 'Failed to process visitor entry');
     }
   };
 
   const handleCheckInApproved = async (passId, name) => {
     try {
       await api.put(`/visitor-passes/${passId}/check-in`);
-      setSuccess(`Checked in ${name} successfully.`);
+      setSuccess(`✅ Visitor ${name} has been Checked-In!`);
       loadData();
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err) {
       alert('Failed to check in: ' + (err.response?.data?.message || err.message));
     }
@@ -135,10 +154,9 @@ export default function GatekeeperPage() {
   const handleCheckOut = async (passId, name) => {
     try {
       await api.put(`/visitor-passes/${passId}/check-out`);
-      api.put(`/visitors/${passId}/check-out`).catch(() => {});
-      setSuccess(`Checked out ${name} successfully.`);
+      setSuccess(`👋 Visitor ${name} successfully Checked-Out.`);
       loadData();
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err) {
       alert('Failed to check out: ' + (err.response?.data?.message || err.message));
     }
@@ -146,565 +164,454 @@ export default function GatekeeperPage() {
 
   const pendingPasses = allPasses.filter(p => p.status === 'PENDING');
   const approvedPrePasses = allPasses.filter(p => p.status === 'APPROVED');
+  const historyPasses = allPasses.filter(p => p.status === 'CHECKED_OUT' || p.status === 'REJECTED');
   const occupiedRooms = rooms.filter(r => r.status === 'OCCUPIED');
 
-  const filteredDirectory = directory.filter(d => {
-    const rNum = d.room?.roomNumber || d.roomNumber || '';
-    const name = d.fullName || d.user?.fullName || '';
-    const ph = d.phone || d.user?.phone || '';
+  const filteredDirectory = directory.filter((d) => {
+    if (!searchDirectory) return true;
     const q = searchDirectory.toLowerCase();
-    return rNum.toLowerCase().includes(q) || name.toLowerCase().includes(q) || ph.includes(q);
+    return (
+      d.fullName?.toLowerCase().includes(q) ||
+      d.phone?.includes(q) ||
+      d.room?.roomNumber?.toLowerCase().includes(q)
+    );
   });
 
   return (
     <div className="space-y-6">
-      {/* Gatekeeper Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center space-x-2 bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-2">
-            <Shield className="w-3.5 h-3.5" />
-            <span>Gatekeeper Terminal • Real-Time Entry Logs</span>
-          </div>
-          <h2 className="text-2xl font-bold">SNNS Apartment Gatekeeper</h2>
-          <p className="text-slate-300 text-sm mt-1">
-            Register visitors for occupied units, record security verification notes, and monitor entry approvals.
-          </p>
-        </div>
+      <PageHeader
+        title="Gatekeeper Operations Terminal"
+        subtitle="Live visitor check-in, real-time resident approval broadcasts, and premises audit tracking."
+        badge={`${activePasses.length} Visitors Inside`}
+        badgeIcon={Shield}
+        breadcrumbs={[{ label: 'Gatekeeper Terminal' }]}
+        actions={
+          <button
+            onClick={() => { setError(''); setShowEntryModal(true); }}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-ocean-cyan hover:bg-ocean-cyanHover text-white rounded-xl text-xs font-bold shadow-xs transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Log Gate Visitor Entry</span>
+          </button>
+        }
+      />
 
-        <div className="flex items-center space-x-4">
-          <div className="bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 text-xs text-center">
-            <span className="text-slate-300 block">Pending Approvals</span>
-            <span className="text-lg font-extrabold text-amber-300">{pendingPasses.length}</span>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 text-xs text-center">
-            <span className="text-slate-300 block">Currently Inside</span>
-            <span className="text-lg font-extrabold text-emerald-300">{activePasses.length}</span>
-          </div>
-        </div>
-      </div>
-
+      {/* Success Notification Banner */}
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-medium flex items-center space-x-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs rounded-2xl font-medium flex items-center space-x-2 animate-fade-in">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span>{success}</span>
         </div>
       )}
 
-      {/* Grid: Check-in Form + Tabbed Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Check-In Card */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs h-fit">
-          <h3 className="text-base font-bold text-slate-900 mb-1 flex items-center space-x-2">
-            <UserCheck className="w-5 h-5 text-brand-600" />
-            <span>Gate Entry Pass</span>
-          </h3>
-          <p className="text-xs text-slate-500 mb-4">Register visitor entry for occupied units.</p>
+      {/* Navigation Tabs */}
+      <div className="flex bg-surface-main p-1.5 rounded-2xl border border-line-subtle shadow-saas-card overflow-x-auto text-xs font-bold max-w-fit gap-1">
+        {[
+          { key: 'ACTIVE', label: `Currently Inside (${activePasses.length})`, icon: UserCheck },
+          { key: 'PENDING', label: `Pending & Pre-Approved (${pendingPasses.length + approvedPrePasses.length})`, icon: Clock },
+          { key: 'DIRECTORY', label: 'Resident Directory', icon: PhoneCall },
+          { key: 'HISTORY', label: 'Visitor Logs History', icon: History },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition whitespace-nowrap ${
+                tab === item.key
+                  ? 'bg-ocean-deep text-white shadow-xs dark:bg-ocean-cyan dark:text-slate-900'
+                  : 'text-content-secondary hover:text-content-primary hover:bg-surface-secondary'
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+      {/* TAB 1: Currently Inside Premises */}
+      {tab === 'ACTIVE' && (
+        <div className="space-y-4">
+          {activePasses.length === 0 ? (
+            <EmptyState
+              icon={UserCheck}
+              title="No Visitors Currently Inside"
+              description="All logged visitors have checked out. When visitors arrive, log their entry to track them here."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activePasses.map((p) => (
+                <div
+                  key={p.id}
+                  className="bg-surface-main p-5 rounded-3xl border border-line-subtle shadow-saas-card hover:shadow-saas-card-hover transition flex flex-col justify-between space-y-4"
+                >
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-ocean-cyan block">
+                          Visiting Flat {p.room?.roomNumber}
+                        </span>
+                        <h3 className="text-base font-bold text-content-primary mt-0.5">
+                          {p.visitorName}
+                        </h3>
+                      </div>
+                      <StatusBadge status="CHECKED_IN" size="xs" />
+                    </div>
+
+                    <div className="mt-3 p-3 rounded-2xl bg-surface-secondary/70 border border-line-subtle space-y-1.5 text-xs text-content-secondary">
+                      <p className="flex items-center space-x-2">
+                        <Phone className="w-3.5 h-3.5 text-ocean-cyan" />
+                        <span className="font-medium text-content-primary">{p.phone}</span>
+                      </p>
+                      {p.vehicleNumber && (
+                        <p className="flex items-center space-x-2">
+                          <Car className="w-3.5 h-3.5 text-ocean-violet" />
+                          <span className="font-mono">{p.vehicleNumber}</span>
+                        </p>
+                      )}
+                      <p className="flex items-center space-x-2">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        <span>In: {p.checkIn ? new Date(p.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span>
+                      </p>
+                    </div>
+
+                    {p.verificationNotes && (
+                      <p className="text-[11px] text-content-muted mt-2 italic bg-surface-secondary/40 p-2 rounded-xl">
+                        "{p.verificationNotes}"
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleCheckOut(p.id, p.visitorName)}
+                    className="w-full py-2.5 bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 border border-red-500/20"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Check Out Visitor</span>
+                  </button>
+                </div>
+              ))}
             </div>
           )}
+        </div>
+      )}
 
-          {/* Verification Mode Selector */}
-          <div className="mb-4 p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block px-1">
-              Verification Mode
-            </span>
-            <div className="grid grid-cols-2 gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setEntryMode('CALL_CONFIRMED')}
-                className={`py-2 px-2 rounded-lg font-semibold text-center transition flex flex-col items-center justify-center gap-1 ${
-                  entryMode === 'CALL_CONFIRMED'
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <BadgeCheck className="w-4 h-4" />
-                <span className="text-[11px] leading-tight">Security Direct Approval</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setEntryMode('REQUEST_ENTRY')}
-                className={`py-2 px-2 rounded-lg font-semibold text-center transition flex flex-col items-center justify-center gap-1 ${
-                  entryMode === 'REQUEST_ENTRY'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <Clock className="w-4 h-4" />
-                <span className="text-[11px] leading-tight">Request In-App Approval</span>
-              </button>
-            </div>
+      {/* TAB 2: Pending & Pre-Approved */}
+      {tab === 'PENDING' && (
+        <div className="space-y-6">
+          {/* Pre-Approved Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-content-primary uppercase tracking-wider flex items-center space-x-2">
+              <BadgeCheck className="w-4 h-4 text-ocean-violet" />
+              <span>Resident Pre-Approved Visitors (Ready for Single-Click Check-In)</span>
+            </h3>
 
-            {/* Direct Security Approval Note details */}
-            {entryMode === 'CALL_CONFIRMED' ? (
-              <div className="p-2.5 bg-white rounded-lg border border-amber-200 space-y-2 text-xs">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
-                    Security Guard Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={guardName}
-                    onChange={(e) => {
-                      setGuardName(e.target.value);
-                      setVerificationNote(`Confirmed with resident via phone call by Security Guard ${e.target.value}`);
-                    }}
-                    placeholder="Duty Guard Name"
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">
-                    Audit Verification Note
-                  </label>
-                  <input
-                    type="text"
-                    value={verificationNote}
-                    onChange={(e) => setVerificationNote(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-[11px] border border-slate-200 rounded-lg focus:ring-1 focus:ring-amber-500 font-mono text-slate-700"
-                  />
-                </div>
-              </div>
-            ) : (
-              <p className="text-[10px] text-slate-500 px-1 italic">
-                Sends a real-time notification to the resident's portal to accept or deny entry.
+            {approvedPrePasses.length === 0 ? (
+              <p className="text-xs text-content-muted italic bg-surface-main p-4 rounded-2xl border border-line-subtle">
+                No pre-approved expected guests at this moment.
               </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {approvedPrePasses.map((p) => (
+                  <div
+                    key={p.id}
+                    className="bg-surface-main p-5 rounded-3xl border border-ocean-violet/30 shadow-saas-card flex flex-col justify-between space-y-3"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-ocean-violet block">
+                            Invited to Flat {p.room?.roomNumber}
+                          </span>
+                          <h4 className="text-base font-bold text-content-primary">{p.visitorName}</h4>
+                        </div>
+                        <StatusBadge status="APPROVED" size="xs" />
+                      </div>
+
+                      <div className="mt-3 p-3 rounded-xl bg-surface-secondary space-y-1 text-xs text-content-secondary">
+                        <p>Phone: <span className="font-medium text-content-primary">{p.phone}</span></p>
+                        {p.vehicleNumber && <p>Vehicle: <span className="font-mono">{p.vehicleNumber}</span></p>}
+                        <p>Purpose: <span className="font-semibold">{p.purpose}</span></p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleCheckInApproved(p.id, p.visitorName)}
+                      className="w-full py-2.5 bg-ocean-cyan hover:bg-ocean-cyanHover text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Check In Now</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
-          <form onSubmit={handleEntrySubmit} className="space-y-3 text-xs">
-            <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Destination Room (Occupied Units Only)
-              </label>
-              <select
-                value={roomNumber}
-                onChange={(e) => setRoomNumber(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              >
-                {occupiedRooms.length === 0 ? (
-                  <option value="" disabled>No occupied rooms found</option>
-                ) : (
-                  occupiedRooms.map((r) => {
-                    const resident = directory.find(d => (d.room?.roomNumber === r.roomNumber || d.roomNumber === r.roomNumber));
-                    const residentName = resident?.fullName || resident?.user?.fullName;
-                    return (
-                      <option key={r.id} value={r.roomNumber}>
-                        Room {r.roomNumber} {residentName ? `(${residentName})` : '(Occupied)'}
-                      </option>
-                    );
-                  })
-                )}
-              </select>
-              {occupiedRooms.length === 0 && (
-                <p className="text-[10px] text-red-500 mt-1">
-                  All rooms are currently vacant. Visitors can only be registered for occupied flats.
-                </p>
-              )}
-            </div>
+          {/* Pending Approval Section */}
+          <div className="space-y-3 pt-4 border-t border-line-subtle">
+            <h3 className="text-sm font-bold text-content-primary uppercase tracking-wider flex items-center space-x-2">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span>Gate Entry Requests Awaiting Resident Confirmation</span>
+            </h3>
 
-            <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Visitor Full Name
-              </label>
-              <input
-                type="text"
-                required
-                value={visitorName}
-                onChange={(e) => setVisitorName(e.target.value)}
-                placeholder="e.g. Anand Sharma"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-            </div>
+            {pendingPasses.length === 0 ? (
+              <p className="text-xs text-content-muted italic bg-surface-main p-4 rounded-2xl border border-line-subtle">
+                No entry requests currently pending resident reply.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pendingPasses.map((p) => (
+                  <div
+                    key={p.id}
+                    className="bg-surface-main p-5 rounded-3xl border border-amber-500/30 shadow-saas-card space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 block">
+                          Waiting for Flat {p.room?.roomNumber}
+                        </span>
+                        <h4 className="text-base font-bold text-content-primary">{p.visitorName}</h4>
+                      </div>
+                      <StatusBadge status="PENDING" size="xs" />
+                    </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Mobile Number
-              </label>
-              <input
-                type="text"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 9123456789"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Purpose
-                </label>
-                <select
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                >
-                  <option value="GUEST">Guest / Relative</option>
-                  <option value="DELIVERY">Delivery / Courier</option>
-                  <option value="CAB">Cab / Taxi</option>
-                  <option value="SERVICE">Service / Maintenance</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                    <p className="text-xs text-content-secondary">
+                      Notification sent to resident portal. System is awaiting resident's approval.
+                    </p>
+                  </div>
+                ))}
               </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Vehicle (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={vehicleNumber}
-                  onChange={(e) => setVehicleNumber(e.target.value)}
-                  placeholder="KL-07-CD-1234"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={occupiedRooms.length === 0}
-              className={`w-full py-2.5 px-4 text-white font-bold rounded-xl shadow-sm transition text-xs mt-2 flex items-center justify-center space-x-2 disabled:opacity-50 ${
-                entryMode === 'CALL_CONFIRMED'
-                  ? 'bg-amber-600 hover:bg-amber-700'
-                  : 'bg-brand-600 hover:bg-brand-700'
-              }`}
-            >
-              {entryMode === 'CALL_CONFIRMED' ? (
-                <>
-                  <BadgeCheck className="w-4 h-4" />
-                  <span>Approve & Allow Entry (Security Verified)</span>
-                </>
-              ) : (
-                <>
-                  <Clock className="w-4 h-4" />
-                  <span>Send Approval Request to Resident</span>
-                </>
-              )}
-            </button>
-          </form>
+            )}
+          </div>
         </div>
+      )}
 
-        {/* Tabbed Panel */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+      {/* TAB 3: Reference Resident Directory */}
+      {tab === 'DIRECTORY' && (
+        <div className="bg-surface-main rounded-3xl border border-line-subtle shadow-saas-card p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-content-primary">Resident Phone Directory</h3>
+              <p className="text-xs text-content-secondary">Lookup contact numbers to call residents for entry confirmation</p>
+            </div>
+
+            <div className="relative max-w-sm w-full">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-content-muted" />
+              <input
+                type="text"
+                placeholder="Search flat number or resident name..."
+                value={searchDirectory}
+                onChange={(e) => setSearchDirectory(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-1.5 text-xs bg-surface-secondary text-content-primary border border-line-subtle rounded-xl focus:ring-2 focus:ring-ocean-cyan focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="table-container">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-line-subtle text-content-muted uppercase font-bold text-[10px] bg-surface-secondary/40">
+                  <th className="py-3 px-4">Flat #</th>
+                  <th className="py-3 px-4">Resident Full Name</th>
+                  <th className="py-3 px-4">Phone Number</th>
+                  <th className="py-3 px-4 text-right">Floor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-subtle">
+                {filteredDirectory.map((d, idx) => (
+                  <tr key={idx} className="hover:bg-surface-secondary/50 transition">
+                    <td className="py-3 px-4 font-extrabold text-content-primary">
+                      <span className="px-2.5 py-1 rounded-lg bg-ocean-cyan/10 text-ocean-cyan border border-ocean-cyan/30 text-xs font-mono">
+                        Flat {d.room?.roomNumber || d.roomNumber}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-bold text-content-primary">
+                      {d.fullName || 'Registered Resident'}
+                    </td>
+                    <td className="py-3 px-4 font-mono font-medium text-content-secondary">
+                      {d.phone}
+                    </td>
+                    <td className="py-3 px-4 text-right text-content-muted">
+                      Floor {d.room?.floorNumber || '1'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: History Visitor Logs */}
+      {tab === 'HISTORY' && (
+        <div className="bg-surface-main rounded-3xl border border-line-subtle shadow-saas-card p-6 space-y-4">
+          <h3 className="text-base font-bold text-content-primary">Visitor Logs & History</h3>
+          <div className="table-container">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-line-subtle text-content-muted uppercase font-bold text-[10px] bg-surface-secondary/40">
+                  <th className="py-3 px-4">Visitor Name</th>
+                  <th className="py-3 px-4">Flat Visited</th>
+                  <th className="py-3 px-4">Check-In</th>
+                  <th className="py-3 px-4">Check-Out</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Audit Note</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-subtle">
+                {historyPasses.map((p) => (
+                  <tr key={p.id} className="hover:bg-surface-secondary/50 transition">
+                    <td className="py-3 px-4 font-bold text-content-primary">
+                      {p.visitorName}
+                      <span className="block text-[10px] text-content-muted font-normal">{p.phone}</span>
+                    </td>
+                    <td className="py-3 px-4 font-mono font-bold text-ocean-cyan">
+                      Flat {p.room?.roomNumber}
+                    </td>
+                    <td className="py-3 px-4 text-content-secondary">
+                      {p.checkIn ? new Date(p.checkIn).toLocaleString() : 'N/A'}
+                    </td>
+                    <td className="py-3 px-4 text-content-secondary">
+                      {p.checkOut ? new Date(p.checkOut).toLocaleString() : 'N/A'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <StatusBadge status={p.status} size="xs" />
+                    </td>
+                    <td className="py-3 px-4 text-[11px] text-content-muted italic max-w-xs truncate">
+                      {p.verificationNotes || 'Standard Gate Log'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Log Visitor Entry Modal */}
+      <Modal
+        isOpen={showEntryModal}
+        onClose={() => setShowEntryModal(false)}
+        title="Log Visitor Entry at Gate"
+        subtitle="Select destination flat and choose verification workflow"
+        icon={Shield}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleEntrySubmit} className="space-y-4">
+          {error && <div className="p-3 bg-red-500/10 text-red-600 text-xs rounded-xl">{error}</div>}
+
+          {/* Mode Switcher */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-surface-secondary rounded-2xl border border-line-subtle text-xs font-bold">
             <button
-              onClick={() => setTab('ACTIVE')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                tab === 'ACTIVE'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+              type="button"
+              onClick={() => setEntryMode('CALL_CONFIRMED')}
+              className={`py-2 px-3 rounded-xl transition ${
+                entryMode === 'CALL_CONFIRMED'
+                  ? 'bg-surface-main text-ocean-cyan shadow-xs'
+                  : 'text-content-secondary hover:text-content-primary'
               }`}
             >
-              Active Inside ({activePasses.length})
+              Direct Entry (Phone Verified)
             </button>
             <button
-              onClick={() => setTab('PENDING')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
-                tab === 'PENDING'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+              type="button"
+              onClick={() => setEntryMode('REQUEST_ENTRY')}
+              className={`py-2 px-3 rounded-xl transition ${
+                entryMode === 'REQUEST_ENTRY'
+                  ? 'bg-surface-main text-ocean-cyan shadow-xs'
+                  : 'text-content-secondary hover:text-content-primary'
               }`}
             >
-              <span>Pending & Pre-Approved</span>
-              {(pendingPasses.length > 0 || approvedPrePasses.length > 0) && (
-                <span className="bg-amber-500 text-white px-1.5 py-0.2 rounded-full text-[10px]">
-                  {pendingPasses.length + approvedPrePasses.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setTab('DIRECTORY')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
-                tab === 'DIRECTORY'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Resident Directory</span>
-            </button>
-            <button
-              onClick={() => setTab('HISTORY')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                tab === 'HISTORY'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Pass History ({allPasses.length})
+              In-App Resident Approval
             </button>
           </div>
 
-          {/* Active Inside Table */}
-          {tab === 'ACTIVE' && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-              {activePasses.length === 0 ? (
-                <div className="p-12 text-center text-slate-400">
-                  <CheckCircle2 className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                  <p className="text-xs font-semibold text-slate-600">No visitors currently inside the premises.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
-                        <th className="py-3 px-4">Visitor</th>
-                        <th className="py-3 px-4">Room #</th>
-                        <th className="py-3 px-4">Purpose</th>
-                        <th className="py-3 px-4">Verification Note</th>
-                        <th className="py-3 px-4">Check-In Time</th>
-                        <th className="py-3 px-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
-                      {activePasses.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-50/80 transition">
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-slate-900">{p.visitorName}</div>
-                            <div className="text-[11px] text-slate-400">{p.phone}</div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
-                              Room {p.room?.roomNumber}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-                              {p.purpose}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 max-w-xs">
-                            <span className="text-[11px] text-slate-600 block truncate" title={p.verificationNotes}>
-                              {p.verificationNotes || (p.requestedBy === 'TENANT' ? 'Pre-Approved by Resident' : 'Security Verified')}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                            {p.checkIn ? new Date(p.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => handleCheckOut(p.id, p.visitorName)}
-                              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold border border-amber-200 transition"
-                            >
-                              Check Out
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-content-primary uppercase mb-1">Destination Flat</label>
+              <select
+                required
+                value={roomNumber}
+                onChange={(e) => setRoomNumber(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl"
+              >
+                {occupiedRooms.map((r) => (
+                  <option key={r.id} value={r.roomNumber}>Flat {r.roomNumber}</option>
+                ))}
+              </select>
             </div>
-          )}
 
-          {/* Pending & Pre-Approved Tab */}
-          {tab === 'PENDING' && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden p-4 space-y-4">
-              {/* Pre-Approved Section */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center space-x-1.5 text-emerald-700">
-                  <BadgeCheck className="w-4 h-4" />
-                  <span>Resident Pre-Approved Visitors (Ready to Check In)</span>
-                </h4>
-                {approvedPrePasses.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No pre-approved expected guests at this moment.</p>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {approvedPrePasses.map((p) => (
-                      <div key={p.id} className="py-3 flex items-center justify-between gap-3">
-                        <div>
-                          <div className="font-bold text-slate-900 text-xs">
-                            {p.visitorName} <span className="text-slate-400">({p.phone})</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            Room {p.room?.roomNumber} • Purpose: {p.purpose} {p.vehicleNumber && `• Vehicle: ${p.vehicleNumber}`}
-                          </div>
-                          {p.expectedVisitTime && (
-                            <div className="text-[10px] text-emerald-600 font-semibold">
-                              Expected: {new Date(p.expectedVisitTime).toLocaleString()}
-                            </div>
-                          )}
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            {p.verificationNotes || 'Pre-approved in resident portal'}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleCheckInApproved(p.id, p.visitorName)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition"
-                        >
-                          Check In Now
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Pending Approvals Section */}
-              <div className="pt-4 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center space-x-1.5 text-amber-700">
-                  <Clock className="w-4 h-4" />
-                  <span>Awaiting Resident In-App Approval</span>
-                </h4>
-                {pendingPasses.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No entry requests currently awaiting resident response.</p>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {pendingPasses.map((p) => (
-                      <div key={p.id} className="py-3 flex items-center justify-between gap-3">
-                        <div>
-                          <div className="font-bold text-slate-900 text-xs">
-                            {p.visitorName} <span className="text-slate-400">({p.phone})</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            Destination: Room {p.room?.roomNumber} • Requested at {new Date(p.createdAt).toLocaleTimeString()}
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold animate-pulse">
-                          Waiting for Resident
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-content-primary uppercase mb-1">Visit Purpose</label>
+              <select
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl"
+              >
+                <option value="GUEST">Guest / Personal</option>
+                <option value="DELIVERY">Delivery / Courier</option>
+                <option value="MAINTENANCE">Contractor / Repair</option>
+                <option value="CAB">Cab / Taxi</option>
+                <option value="OTHER">Other</option>
+              </select>
             </div>
-          )}
+          </div>
 
-          {/* Resident Directory Tab (Reference lookup without confusing call triggers) */}
-          {tab === 'DIRECTORY' && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden p-4 space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Resident Phone Directory
-                  </h4>
-                  <p className="text-xs text-slate-500">Official resident directory for security reference.</p>
-                </div>
-                <div className="relative w-full sm:w-60">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search room or resident..."
-                    value={searchDirectory}
-                    onChange={(e) => setSearchDirectory(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-content-primary uppercase mb-1">Visitor Full Name</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Anand Sharma"
+              value={visitorName}
+              onChange={(e) => setVisitorName(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl"
+            />
+          </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
-                      <th className="py-2.5 px-3">Room</th>
-                      <th className="py-2.5 px-3">Resident Name</th>
-                      <th className="py-2.5 px-3">Contact Phone</th>
-                      <th className="py-2.5 px-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
-                    {filteredDirectory.map((d, idx) => {
-                      const rNum = d.room?.roomNumber || d.roomNumber || '—';
-                      const name = d.fullName || d.user?.fullName || 'Resident';
-                      const phoneNum = d.phone || d.user?.phone || '—';
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/80 transition">
-                          <td className="py-2.5 px-3 font-bold text-brand-700">
-                            Room {rNum}
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold text-slate-900">
-                            {name}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-slate-700 font-bold">
-                            {phoneNum}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Active
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-content-primary uppercase mb-1">Visitor Mobile</label>
+              <input
+                type="text"
+                required
+                placeholder="+91 9123456789"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl"
+              />
             </div>
-          )}
-
-          {/* History Tab */}
-          {tab === 'HISTORY' && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
-                      <th className="py-3 px-4">Visitor</th>
-                      <th className="py-3 px-4">Room #</th>
-                      <th className="py-3 px-4">Purpose</th>
-                      <th className="py-3 px-4">Verification Note</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Check-In</th>
-                      <th className="py-3 px-4">Check-Out</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
-                    {allPasses.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-slate-900">{p.visitorName}</div>
-                          <div className="text-[11px] text-slate-400">{p.phone}</div>
-                        </td>
-                        <td className="py-3 px-4">Room {p.room?.roomNumber}</td>
-                        <td className="py-3 px-4">{p.purpose}</td>
-                        <td className="py-3 px-4 max-w-xs">
-                          <span className="text-[11px] text-slate-500 block truncate" title={p.verificationNotes}>
-                            {p.verificationNotes || '—'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              p.status === 'CHECKED_IN'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : p.status === 'APPROVED'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : p.status === 'REJECTED'
-                                ? 'bg-red-50 text-red-700 border border-red-200'
-                                : p.status === 'PENDING'
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {p.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                          {p.checkIn ? new Date(p.checkIn).toLocaleString() : '—'}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                          {p.checkOut ? new Date(p.checkOut).toLocaleString() : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-content-primary uppercase mb-1">Vehicle # (Optional)</label>
+              <input
+                type="text"
+                placeholder="KL-07-CD-1234"
+                value={vehicleNumber}
+                onChange={(e) => setVehicleNumber(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl font-mono uppercase"
+              />
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+
+          <div className="pt-3 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowEntryModal(false)}
+              className="px-4 py-2 text-xs font-semibold text-content-secondary rounded-xl"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-bold text-white bg-ocean-cyan hover:bg-ocean-cyanHover rounded-xl shadow-xs"
+            >
+              {entryMode === 'CALL_CONFIRMED' ? 'Check In Visitor Now' : 'Send Approval Request'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

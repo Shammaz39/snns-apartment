@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { Wrench, CheckCircle, Clock, AlertTriangle, MessageSquare } from 'lucide-react';
+import { 
+  Wrench, CheckCircle, Clock, AlertTriangle, MessageSquare, 
+  Filter, Shield, Building2, CheckCircle2, ChevronRight, Sparkles 
+} from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
+import StatusBadge from '../components/common/StatusBadge';
+import Modal from '../components/common/Modal';
+import EmptyState from '../components/common/EmptyState';
+import { TableSkeleton } from '../components/common/LoadingSkeleton';
 
 export default function ComplaintsPage() {
   const { isAdmin, user } = useAuth();
@@ -25,7 +33,7 @@ export default function ComplaintsPage() {
         ? `/complaints/room/${user.roomId}`
         : '/complaints';
       const res = await api.get(url);
-      setComplaints(res.data);
+      setComplaints(res.data || []);
     } catch (e) {
       console.error('Failed to load complaints', e);
     } finally {
@@ -52,68 +60,97 @@ export default function ComplaintsPage() {
     return c.status === statusFilter;
   });
 
+  const counts = {
+    all: complaints.length,
+    open: complaints.filter(c => c.status === 'OPEN').length,
+    inProgress: complaints.filter(c => c.status === 'IN_PROGRESS').length,
+    resolved: complaints.filter(c => c.status === 'RESOLVED').length,
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Maintenance & Service Complaints</h2>
-          <p className="text-sm text-slate-500">
-            Plumbing leaks, electrical repairs, lift servicing, and waste disposal tickets.
-          </p>
+      <PageHeader
+        title="Maintenance & Tickets"
+        subtitle="Track plumbing repairs, electrical work, lift maintenance, and resident service tickets."
+        badge={`${complaints.length} Total Tickets`}
+      />
+
+      {/* Filter and Summary Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs">
+        <div className="flex items-center space-x-2 text-xs font-semibold text-content-light-secondary dark:text-content-dark-secondary">
+          <Filter className="w-4 h-4 text-ocean-cyan" />
+          <span>Filter by Status:</span>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold max-w-fit">
-          {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'].map((s) => (
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary max-w-fit overflow-x-auto">
+          {[
+            { id: 'ALL', label: 'All', count: counts.all },
+            { id: 'OPEN', label: 'Open', count: counts.open },
+            { id: 'IN_PROGRESS', label: 'In Progress', count: counts.inProgress },
+            { id: 'RESOLVED', label: 'Resolved', count: counts.resolved },
+          ].map((tab) => (
             <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                statusFilter === s
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+              key={tab.id}
+              onClick={() => setStatusFilter(tab.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                statusFilter === tab.id
+                  ? 'bg-surface-light dark:bg-surface-dark text-ocean-deep dark:text-ocean-cyan shadow-xs'
+                  : 'text-content-light-secondary dark:text-content-dark-secondary hover:text-content-light-primary dark:hover:text-content-dark-primary'
               }`}
             >
-              {s}
+              <span>{tab.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                statusFilter === tab.id
+                  ? 'bg-ocean-cyan/15 text-ocean-cyan'
+                  : 'bg-black/5 dark:bg-white/10'
+              }`}>
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Complaints List */}
-      <div className="space-y-3.5">
-        {filteredComplaints.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-100">
-            <CheckCircle className="w-12 h-12 mx-auto text-emerald-400 mb-2" />
-            <p className="font-semibold text-slate-700">No complaints matching the selected filter!</p>
-          </div>
-        ) : (
-          filteredComplaints.map((c) => (
+      {loading ? (
+        <TableSkeleton rows={4} cols={4} />
+      ) : filteredComplaints.length === 0 ? (
+        <EmptyState
+          icon={CheckCircle}
+          title="No complaints matching selected filter"
+          description={
+            statusFilter === 'ALL'
+              ? "All maintenance operations are currently smooth with zero open issues."
+              : `There are no tickets with status "${statusFilter}".`
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {filteredComplaints.map((c) => (
             <div
               key={c.id}
-              className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:border-slate-300 transition"
+              className="group p-5 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs hover:border-ocean-cyan/40 dark:hover:border-ocean-cyan/40 transition-all duration-200"
             >
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-slate-900">Room #{c.room?.roomNumber}</span>
-                    <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-ocean-deep/10 text-ocean-deep dark:bg-ocean-cyan/15 dark:text-ocean-cyan">
+                      Unit #{c.room?.roomNumber || 'N/A'}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-surface-light-secondary text-content-light-secondary dark:bg-surface-dark-secondary dark:text-content-dark-secondary border border-border-light dark:border-border-dark">
                       {c.category}
                     </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        c.status === 'RESOLVED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : c.status === 'IN_PROGRESS'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {c.status}
+                    <StatusBadge status={c.status} />
+                    <span className="text-[11px] text-content-light-secondary/60 dark:text-content-dark-secondary/60 ml-auto sm:ml-0">
+                      {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''}
                     </span>
                   </div>
-                  <h3 className="font-bold text-slate-800 text-base">{c.title}</h3>
-                  <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">
+
+                  <h3 className="font-bold text-base text-content-light-primary dark:text-content-dark-primary group-hover:text-ocean-cyan transition-colors">
+                    {c.title}
+                  </h3>
+
+                  <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary whitespace-pre-line leading-relaxed">
                     {c.description}
                   </p>
                 </div>
@@ -125,7 +162,7 @@ export default function ComplaintsPage() {
                       setNewStatus(c.status);
                       setAdminResponse(c.adminResponse || '');
                     }}
-                    className="shrink-0 px-3 py-1.5 bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700 rounded-lg text-xs font-bold border border-slate-200 transition"
+                    className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold bg-surface-light-secondary hover:bg-ocean-cyan/10 text-ocean-deep hover:text-ocean-cyan dark:bg-surface-dark-secondary dark:hover:bg-ocean-cyan/20 dark:text-content-dark-primary dark:hover:text-ocean-cyan border border-border-light dark:border-border-dark transition"
                   >
                     Update Status
                   </button>
@@ -133,79 +170,77 @@ export default function ComplaintsPage() {
               </div>
 
               {c.adminResponse && (
-                <div className="mt-3.5 p-3 bg-brand-50/70 border border-brand-100 rounded-xl text-xs text-brand-900 flex items-start space-x-2">
-                  <MessageSquare className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="block text-brand-950 font-bold">Admin Resolution Note:</strong>
-                    <span>{c.adminResponse}</span>
+                <div className="mt-4 p-3.5 rounded-xl bg-ocean-cyan/5 border border-ocean-cyan/20 text-xs flex items-start space-x-2.5">
+                  <MessageSquare className="w-4 h-4 text-ocean-cyan shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <strong className="block text-ocean-deep dark:text-ocean-cyan font-bold">
+                      Management Resolution Note:
+                    </strong>
+                    <span className="text-content-light-primary dark:text-content-dark-primary">
+                      {c.adminResponse}
+                    </span>
                   </div>
                 </div>
               )}
             </div>
-          ))
-        )}
-      </div>
-
-      {/* Admin Status Update Modal */}
-      {selectedComplaint && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg">Update Ticket Status</h3>
-              <button
-                onClick={() => setSelectedComplaint(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateStatus} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Status</label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="OPEN">OPEN</option>
-                  <option value="IN_PROGRESS">IN_PROGRESS (Technician Assigned)</option>
-                  <option value="RESOLVED">RESOLVED (Work Completed)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Manager Response / Remarks to Resident
-                </label>
-                <textarea
-                  rows="3"
-                  placeholder="e.g. Plumber visited and replaced washer in Room 101."
-                  value={adminResponse}
-                  onChange={(e) => setAdminResponse(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedComplaint(null)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm"
-                >
-                  Save Status
-                </button>
-              </div>
-            </form>
-          </div>
+          ))}
         </div>
       )}
+
+      {/* Admin Status Update Modal */}
+      <Modal
+        isOpen={Boolean(selectedComplaint)}
+        onClose={() => setSelectedComplaint(null)}
+        title="Update Ticket Status"
+        subtitle={`Ticket #${selectedComplaint?.id} • Room ${selectedComplaint?.room?.roomNumber}`}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleUpdateStatus} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1.5">
+              Service Status
+            </label>
+            <select
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
+            >
+              <option value="OPEN">OPEN (Awaiting Review)</option>
+              <option value="IN_PROGRESS">IN_PROGRESS (Technician Assigned)</option>
+              <option value="RESOLVED">RESOLVED (Service Completed)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-content-light-secondary dark:text-content-dark-secondary mb-1.5">
+              Manager Response / Remarks to Resident
+            </label>
+            <textarea
+              rows="3"
+              placeholder="e.g. Plumber visited and replaced washer in Room 101."
+              value={adminResponse}
+              onChange={(e) => setAdminResponse(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary placeholder-content-light-secondary/50 dark:placeholder-content-dark-secondary/50 focus:ring-2 focus:ring-ocean-cyan outline-none resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end space-x-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setSelectedComplaint(null)}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-content-light-secondary dark:text-content-dark-secondary hover:bg-surface-light-secondary dark:hover:bg-surface-dark-secondary border border-border-light dark:border-border-dark transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-ocean-cyan hover:bg-ocean-cyan/90 text-white shadow-xs transition"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

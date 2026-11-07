@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { 
   Phone, Plus, Edit2, Trash2, CheckCircle2, AlertCircle, 
-  Wrench, Zap, ShoppingCart, ShieldAlert, HeartPulse, Flame, HelpCircle, PhoneCall
+  Wrench, Zap, ShoppingCart, ShieldAlert, HeartPulse, Flame, PhoneCall,
+  Sparkles, HelpCircle
 } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
+import EmptyState from '../components/common/EmptyState';
+import { CardSkeleton } from '../components/common/LoadingSkeleton';
 
 export default function EmergencyContactsPage() {
   const [contacts, setContacts] = useState([]);
@@ -85,32 +89,26 @@ export default function EmergencyContactsPage() {
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'PLUMBER': return <Wrench className="w-4 h-4 text-blue-600" />;
+      case 'PLUMBER': return <Wrench className="w-4 h-4 text-ocean-cyan" />;
       case 'ELECTRICIAN': return <Zap className="w-4 h-4 text-amber-500" />;
-      case 'SUPERMARKET': return <ShoppingCart className="w-4 h-4 text-emerald-600" />;
-      case 'HOSPITAL': return <HeartPulse className="w-4 h-4 text-red-600" />;
-      case 'POLICE': return <ShieldAlert className="w-4 h-4 text-indigo-600" />;
-      case 'FIRE': return <Flame className="w-4 h-4 text-orange-600" />;
-      default: return <Phone className="w-4 h-4 text-slate-600" />;
+      case 'SUPERMARKET': return <ShoppingCart className="w-4 h-4 text-emerald-500" />;
+      case 'HOSPITAL': return <HeartPulse className="w-4 h-4 text-rose-500" />;
+      case 'POLICE': return <ShieldAlert className="w-4 h-4 text-ocean-violet" />;
+      case 'FIRE': return <Flame className="w-4 h-4 text-orange-500" />;
+      default: return <Phone className="w-4 h-4 text-content-light-secondary dark:text-content-dark-secondary" />;
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md">
-        <div className="inline-flex items-center space-x-2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-semibold mb-2">
-          <Phone className="w-3.5 h-3.5" />
-          <span>Emergency Contacts & Helplines</span>
-        </div>
-        <h2 className="text-2xl font-bold">Community Helplines & Utility Services</h2>
-        <p className="text-slate-300 text-sm mt-1">
-          Add and manage numbers for plumbers, electricians, grocery delivery, and emergency services visible to all residents.
-        </p>
-      </div>
+      <PageHeader
+        title="Emergency & Utility Helplines"
+        subtitle="Publish contact numbers for plumbers, electricians, grocery delivery, and community emergency response."
+        badge={`${contacts.length} Directory Numbers`}
+      />
 
       {success && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl font-medium flex items-center space-x-2">
+        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center space-x-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{success}</span>
         </div>
@@ -118,17 +116,17 @@ export default function EmergencyContactsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Form Card */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs h-fit">
-          <h3 className="text-base font-bold text-slate-900 mb-1 flex items-center space-x-2">
-            <Plus className="w-4 h-4 text-indigo-600" />
-            <span>{editingId ? 'Edit Emergency Contact' : 'Add New Helpline / Contact'}</span>
+        <div className="p-5 rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs h-fit">
+          <h3 className="text-base font-bold text-content-light-primary dark:text-content-dark-primary mb-1 flex items-center space-x-2">
+            <Plus className="w-4 h-4 text-ocean-cyan" />
+            <span>{editingId ? 'Edit Directory Helpline' : 'Add New Helpline'}</span>
           </h3>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mb-4">
             {editingId ? 'Update details of this service contact.' : 'Publish a service provider number for apartment residents.'}
           </p>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center space-x-2">
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -136,13 +134,13 @@ export default function EmergencyContactsPage() {
 
           <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block font-bold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wider mb-1">
                 Service Category
               </label>
               <select
                 value={contactType}
                 onChange={(e) => setContactType(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary focus:ring-2 focus:ring-ocean-cyan outline-none"
               >
                 <option value="PLUMBER">Plumber / Water Leaks</option>
                 <option value="ELECTRICIAN">Electrician / Power Issues</option>
@@ -156,7 +154,7 @@ export default function EmergencyContactsPage() {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block font-bold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wider mb-1">
                 Contact / Provider Name
               </label>
               <input
@@ -165,12 +163,12 @@ export default function EmergencyContactsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Ramesh Plumbing Services"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary placeholder-content-light-secondary/50 dark:placeholder-content-dark-secondary/50 focus:ring-2 focus:ring-ocean-cyan outline-none"
               />
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block font-bold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wider mb-1">
                 Phone Number (Click-to-Call)
               </label>
               <input
@@ -179,12 +177,12 @@ export default function EmergencyContactsPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. +91 9845012345"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary placeholder-content-light-secondary/50 dark:placeholder-content-dark-secondary/50 focus:ring-2 focus:ring-ocean-cyan outline-none font-mono"
               />
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block font-bold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wider mb-1">
                 Description / Timings (Optional)
               </label>
               <input
@@ -192,14 +190,14 @@ export default function EmergencyContactsPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Available 24/7, doorstep service"
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-content-light-primary dark:text-content-dark-primary placeholder-content-light-secondary/50 dark:placeholder-content-dark-secondary/50 focus:ring-2 focus:ring-ocean-cyan outline-none"
               />
             </div>
 
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="submit"
-                className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition text-xs"
+                className="flex-1 py-2.5 px-4 bg-ocean-cyan hover:bg-ocean-cyan/90 text-white font-bold rounded-xl shadow-xs transition text-xs"
               >
                 {editingId ? 'Update Contact' : 'Save Contact'}
               </button>
@@ -207,7 +205,7 @@ export default function EmergencyContactsPage() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-xs"
+                  className="py-2.5 px-3 rounded-xl bg-surface-light-secondary hover:bg-black/5 dark:bg-surface-dark-secondary dark:hover:bg-white/10 text-content-light-secondary dark:text-content-dark-secondary font-bold transition text-xs border border-border-light dark:border-border-dark"
                 >
                   Cancel
                 </button>
@@ -218,38 +216,53 @@ export default function EmergencyContactsPage() {
 
         {/* Contacts List */}
         <div className="lg:col-span-2 space-y-3">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-sm">Active Directory ({contacts.length})</h3>
-              <span className="text-xs text-slate-400">All residents can click to call directly</span>
+          <div className="rounded-2xl bg-surface-light border border-border-light dark:bg-surface-dark dark:border-border-dark shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
+              <h3 className="font-bold text-content-light-primary dark:text-content-dark-primary text-sm">
+                Active Directory ({contacts.length})
+              </h3>
+              <span className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
+                Residents can click to call directly
+              </span>
             </div>
 
-            {contacts.length === 0 ? (
-              <div className="p-12 text-center text-slate-400">
-                <Phone className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                <p className="text-xs font-semibold text-slate-600">No emergency contacts added yet.</p>
-                <p className="text-[11px] text-slate-400 mt-1">Use the form on the left to add your first helpline.</p>
+            {loading ? (
+              <div className="p-4">
+                <CardSkeleton count={3} />
               </div>
+            ) : contacts.length === 0 ? (
+              <EmptyState
+                icon={Phone}
+                title="No emergency contacts added yet"
+                description="Use the form on the left to add your first community helpline or contractor."
+              />
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-border-light dark:divide-border-dark">
                 {contacts.map((c) => (
-                  <div key={c.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50/70 transition">
+                  <div
+                    key={c.id}
+                    className="p-4 flex items-center justify-between gap-4 hover:bg-surface-light-secondary/50 dark:hover:bg-surface-dark-secondary/50 transition"
+                  >
                     <div className="flex items-start space-x-3">
-                      <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 shrink-0 mt-0.5">
+                      <div className="p-2.5 rounded-xl bg-surface-light-secondary dark:bg-surface-dark-secondary border border-border-light dark:border-border-dark shrink-0 mt-0.5">
                         {getTypeIcon(c.contactType)}
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-bold text-slate-900 text-sm">{c.name}</span>
-                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                          <span className="font-bold text-content-light-primary dark:text-content-dark-primary text-sm">
+                            {c.name}
+                          </span>
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-ocean-deep/10 text-ocean-deep dark:bg-ocean-cyan/15 dark:text-ocean-cyan">
                             {c.contactType}
                           </span>
                         </div>
-                        <div className="text-xs font-mono font-semibold text-indigo-700 mt-0.5">
+                        <div className="text-xs font-mono font-semibold text-ocean-cyan mt-0.5">
                           {c.phone}
                         </div>
                         {c.description && (
-                          <div className="text-[11px] text-slate-500 mt-1">{c.description}</div>
+                          <div className="text-[11px] text-content-light-secondary dark:text-content-dark-secondary mt-1">
+                            {c.description}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -257,21 +270,21 @@ export default function EmergencyContactsPage() {
                     <div className="flex items-center space-x-1.5 shrink-0">
                       <a
                         href={`tel:${c.phone.replace(/\s+/g, '')}`}
-                        className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+                        className="p-2 text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition"
                         title="Test Call"
                       >
                         <PhoneCall className="w-4 h-4" />
                       </a>
                       <button
                         onClick={() => handleEdit(c)}
-                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                        className="p-2 text-content-light-secondary dark:text-content-dark-secondary hover:bg-surface-light-secondary dark:hover:bg-surface-dark-secondary rounded-lg transition"
                         title="Edit"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(c.id, c.name)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />

@@ -1,12 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
-import { Receipt, PlusCircle, CheckCircle2, Clock, XCircle, Filter, FileText } from 'lucide-react';
+import {
+  Receipt,
+  PlusCircle,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Filter,
+  FileText,
+  Search,
+  ExternalLink,
+  ShieldCheck,
+  Calendar,
+} from 'lucide-react';
 import ReceiptVerifyModal from '../components/ReceiptVerifyModal';
+import PageHeader from '../components/common/PageHeader';
+import StatusBadge from '../components/common/StatusBadge';
+import Modal from '../components/common/Modal';
+import EmptyState from '../components/common/EmptyState';
+import { TableSkeleton } from '../components/common/LoadingSkeleton';
 
 export default function BillsPage() {
   const [bills, setBills] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [selectedBillForVerify, setSelectedBillForVerify] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +44,8 @@ export default function BillsPage() {
         api.get('/bills'),
         api.get('/rooms')
       ]);
-      setBills(billsRes.data);
-      setRooms(roomsRes.data);
+      setBills(billsRes.data || []);
+      setRooms(roomsRes.data || []);
     } catch (e) {
       console.error('Failed to load bills', e);
     } finally {
@@ -51,203 +69,212 @@ export default function BillsPage() {
   };
 
   const filteredBills = bills.filter((b) => {
-    if (statusFilter === 'ALL') return true;
-    return b.status === statusFilter;
+    const matchesStatus = statusFilter === 'ALL' || b.status === statusFilter;
+    const matchesSearch =
+      !searchQuery ||
+      b.room?.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.transactionRef?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Billing & Payment Verification</h2>
-          <p className="text-sm text-slate-500">
-            Generate lift maintenance, waste management, and rent bills. Review UPI payment receipts.
-          </p>
+      <PageHeader
+        title="Billing & Payment Audit"
+        subtitle="Generate monthly maintenance fee invoices, review UTR screenshots, and mark payments verified."
+        badge={`${bills.length} Invoices`}
+        badgeIcon={Receipt}
+        breadcrumbs={[{ label: 'Billing & Receipts' }]}
+        actions={
+          <button
+            onClick={() => setShowGenerateModal(true)}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-ocean-cyan hover:bg-ocean-cyanHover text-white rounded-xl text-xs font-bold shadow-xs transition"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>+ Generate Monthly Bills</span>
+          </button>
+        }
+      />
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface-main p-3 rounded-2xl border border-line-subtle shadow-saas-card">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-content-muted">
+            <Search className="w-4 h-4" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search flat # or UTR reference..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3.5 py-1.5 text-xs bg-surface-secondary text-content-primary border border-line-subtle rounded-xl focus:ring-2 focus:ring-ocean-cyan focus:outline-none"
+          />
         </div>
 
-        <button
-          onClick={() => setShowGenerateModal(true)}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>+ Generate Monthly Bills</span>
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold max-w-fit">
-        {[
-          { key: 'ALL', label: 'All Bills' },
-          { key: 'PENDING_VERIFICATION', label: 'Awaiting Verification' },
-          { key: 'PAID', label: 'Paid & Approved' },
-          { key: 'PENDING', label: 'Unpaid / Pending' },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={`px-3.5 py-1.5 rounded-lg transition ${
-              statusFilter === tab.key
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {/* Filter Status Pills */}
+        <div className="flex items-center space-x-1 overflow-x-auto pb-1 sm:pb-0">
+          {[
+            { key: 'ALL', label: 'All Invoices' },
+            { key: 'PENDING_VERIFICATION', label: 'Queued for Audit' },
+            { key: 'PAID', label: 'Paid & Approved' },
+            { key: 'PENDING', label: 'Awaiting Payment' },
+            { key: 'REJECTED', label: 'Rejected' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                statusFilter === tab.key
+                  ? 'bg-ocean-deep text-white shadow-xs dark:bg-ocean-cyan dark:text-slate-900'
+                  : 'text-content-secondary hover:text-content-primary hover:bg-surface-secondary'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Bills Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50 text-slate-700 uppercase text-[11px] font-bold border-b border-slate-100">
-              <tr>
-                <th className="px-5 py-3.5">Month</th>
-                <th className="px-5 py-3.5">Room</th>
-                <th className="px-5 py-3.5">Fee Breakdown</th>
-                <th className="px-5 py-3.5">Total Amount</th>
-                <th className="px-5 py-3.5">Payment Status</th>
-                <th className="px-5 py-3.5">Transaction UTR</th>
-                <th className="px-5 py-3.5 text-right">Verification</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredBills.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-12 text-slate-400 font-medium">
-                    No bills found for the selected filter.
-                  </td>
+      {loading ? (
+        <TableSkeleton rows={6} cols={6} />
+      ) : filteredBills.length === 0 ? (
+        <EmptyState
+          icon={Receipt}
+          title="No Invoices Found"
+          description="Click '+ Generate Monthly Bills' above to run the automated billing cycle."
+        />
+      ) : (
+        <div className="bg-surface-main rounded-3xl border border-line-subtle shadow-saas-card overflow-hidden">
+          <div className="table-container">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-line-subtle text-content-muted uppercase font-bold text-[10px] bg-surface-secondary/40">
+                  <th className="py-3.5 px-4">Invoice / Flat</th>
+                  <th className="py-3.5 px-4">Billing Month</th>
+                  <th className="py-3.5 px-4">Breakdown</th>
+                  <th className="py-3.5 px-4">Total Amount</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4">Bank Ref (UTR)</th>
+                  <th className="py-3.5 px-4 text-right">Verification Action</th>
                 </tr>
-              ) : (
-                filteredBills.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50 transition">
-                    <td className="px-5 py-4 font-bold text-slate-900">{b.billingMonth}</td>
-                    <td className="px-5 py-4 font-bold text-slate-800">Room #{b.room?.roomNumber}</td>
-                    <td className="px-5 py-4 text-xs text-slate-500">
-                      <div>Rent: ₹{b.rentAmount}</div>
-                      <div>Lift: ₹{b.liftMaintenanceFee} | Waste: ₹{b.wasteManagementFee}</div>
+              </thead>
+              <tbody className="divide-y divide-line-subtle">
+                {filteredBills.map((b) => (
+                  <tr key={b.id} className="hover:bg-surface-secondary/50 transition">
+                    <td className="py-3.5 px-4 font-bold text-content-primary">
+                      <span className="font-mono text-ocean-cyan">#{b.id}</span> • Flat {b.room?.roomNumber}
                     </td>
-                    <td className="px-5 py-4 font-bold text-slate-900">₹{b.totalAmount}</td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex items-center space-x-1 text-xs px-2.5 py-1 rounded-full font-bold ${
-                          b.status === 'PAID'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : b.status === 'PENDING_VERIFICATION'
-                            ? 'bg-amber-100 text-amber-800 animate-pulse'
-                            : b.status === 'REJECTED'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {b.status === 'PAID' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                        {b.status === 'PENDING_VERIFICATION' && <Clock className="w-3.5 h-3.5" />}
-                        {b.status === 'REJECTED' && <XCircle className="w-3.5 h-3.5" />}
-                        <span>{b.status}</span>
-                      </span>
+                    <td className="py-3.5 px-4 text-content-secondary font-medium">
+                      {b.billingMonth}
                     </td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-700">
-                      {b.transactionRef || '—'}
+                    <td className="py-3.5 px-4 text-[11px] text-content-muted">
+                      Rent: ₹{b.rentAmount} | Lift: ₹{b.liftMaintenanceFee} | Waste: ₹{b.wasteManagementFee}
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="py-3.5 px-4 font-extrabold text-content-primary text-sm">
+                      ₹{Number(b.totalAmount).toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <StatusBadge status={b.status} size="xs" />
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-[11px] text-content-secondary">
+                      {b.transactionRef || <span className="text-content-muted italic">None</span>}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
                       {b.status === 'PENDING_VERIFICATION' ? (
                         <button
                           onClick={() => setSelectedBillForVerify(b)}
-                          className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-sm transition"
+                          className="px-3.5 py-1.5 bg-ocean-cyan hover:bg-ocean-cyanHover text-white font-bold rounded-xl text-xs shadow-xs transition"
                         >
                           Verify Receipt
                         </button>
-                      ) : b.receiptDocPath ? (
+                      ) : (
                         <button
                           onClick={() => setSelectedBillForVerify(b)}
-                          className="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md transition"
+                          className="px-3 py-1.5 text-content-secondary hover:text-content-primary hover:bg-surface-secondary font-medium rounded-xl text-xs transition"
                         >
-                          View Receipt
+                          View Details
                         </button>
-                      ) : (
-                        <span className="text-xs text-slate-400">No receipt</span>
                       )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Generate Bills Modal */}
-      {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg">Generate Monthly Maintenance Bills</h3>
-              <button
-                onClick={() => setShowGenerateModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleGenerateBills} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Billing Month</label>
-                <input
-                  type="text"
-                  required
-                  value={billingMonth}
-                  onChange={(e) => setBillingMonth(e.target.value)}
-                  placeholder="YYYY-MM (e.g. 2026-10)"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Target Scope</label>
-                <select
-                  value={targetRoomId}
-                  onChange={(e) => setTargetRoomId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="">All Occupied Rooms (Automatic)</option>
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Room #{r.roomNumber} ({r.status})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Leave as "All Occupied Rooms" to generate bills across the entire apartment complex.
-                </p>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowGenerateModal(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm"
-                >
-                  Generate Bills
-                </button>
-              </div>
-            </form>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Modal for Verifying Payment */}
+      {/* Bill Generation Modal */}
+      <Modal
+        isOpen={showGenerateModal}
+        onClose={() => setShowGenerateModal(false)}
+        title="Generate Monthly Invoices"
+        subtitle="Automated batch calculation of rent, lift, and waste fees"
+        icon={Receipt}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleGenerateBills} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-content-primary uppercase tracking-wider mb-1.5">
+              Target Selection
+            </label>
+            <select
+              value={targetRoomId}
+              onChange={(e) => setTargetRoomId(e.target.value)}
+              className="w-full px-3.5 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl focus:ring-2 focus:ring-ocean-cyan focus:outline-none"
+            >
+              <option value="">All Occupied Units (Society Bulk Generation)</option>
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  Flat {r.roomNumber} ({r.status})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-content-primary uppercase tracking-wider mb-1.5">
+              Billing Month (YYYY-MM)
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 2026-11"
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(e.target.value)}
+              className="w-full px-3.5 py-2 text-xs bg-surface-main text-content-primary border border-line-subtle rounded-xl focus:ring-2 focus:ring-ocean-cyan focus:outline-none font-mono"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowGenerateModal(false)}
+              className="px-4 py-2 text-xs font-semibold text-content-secondary rounded-xl"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-bold text-white bg-ocean-cyan hover:bg-ocean-cyanHover rounded-xl shadow-xs"
+            >
+              Run Generation
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Verification Modal */}
       {selectedBillForVerify && (
         <ReceiptVerifyModal
           bill={selectedBillForVerify}
           onClose={() => setSelectedBillForVerify(null)}
-          onVerified={loadData}
+          onSuccess={() => {
+            setSelectedBillForVerify(null);
+            loadData();
+          }}
         />
       )}
     </div>
