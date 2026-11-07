@@ -1,0 +1,15 @@
+package com.snns.apartment;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+
+@SpringBootTest
+@ActiveProfiles("test")
+class SnnsApartmentApplicationTests {
+
+    @Test
+    void contextLoads() {
+        // Verifies Spring context, entities, repositories, and security beans start up cleanly
+    }
+}

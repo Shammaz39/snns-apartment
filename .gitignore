@@ -1,0 +1,81 @@
+# =====================================================
+# SNNS Apartment Management System - .gitignore
+# =====================================================
+
+# ==================== Backend (Java / Maven) ====================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.log
+backend/logs/
+*.class
+*.jar
+!backend/src/**/
+*.war
+*.ear
+
+# ==================== Frontend (Node.js / React) ====================
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/*.log
+frontend/.cache/
+
+# ==================== IDE & Editor Files ====================
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+nbproject/
+*.sublime-project
+*.sublime-workspace
+
+# ==================== OS Generated Files ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==================== Docker (runtime volumes, not config) ====================
+# Keep docker-compose.yml and Dockerfiles in git
+# Ignore runtime data
+mysql_data/
+snns_mysql_data/
+
+# ==================== File Uploads (user data - never push) ====================
+backend/uploads/
+uploads/
+*.uploaded
+
+# ==================== Security Sensitive (NEVER push) ====================
+# If you create .env files with real passwords, they are ignored
+.env
+.env.local
+.env.production
+*.pem
+*.key
+*.p12
+*.jks
+
+# ==================== Test & Debug Artifacts ====================
+test_*.ps1
+last*.txt
+*.tmp
+*.bak
+.dist/
+
+# ==================== Misc ====================
+*.log
+*.gz
+*.zip
+*.tar
