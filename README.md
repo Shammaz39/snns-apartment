@@ -190,31 +190,42 @@ snns-apartment/
 
 ## 🌐 Production Deployment (Custom Domain)
 
-To deploy this project to your own domain (e.g. `apartment.yourdomain.com`) on any Cloud VPS (DigitalOcean, AWS, Linode, Hostinger, GCP):
+To deploy SNNS Apartment to your own domain or subdomain (e.g. `apartment.yourdomain.com` or `yourdomain.com`) on any Cloud VPS provider (Ubuntu / Debian on AWS EC2, DigitalOcean, Linode, Hostinger, Hetzner, GCP), choose between two production architectures:
 
-### Step 1: Configure DNS
-Log in to your domain DNS provider (GoDaddy, Namecheap, Cloudflare) and create an **A Record**:
+- **[Option A: Containerized Deployment with Docker (Recommended)](#option-a-docker-compose-deployment-recommended)** — One-command deployment managing DB, Backend, and Frontend containers with zero host package conflicts.
+- **[Option B: Bare-Metal / Native VPS Deployment (Non-Docker)](#option-b-native-vps-deployment-non-docker)** — Runs directly on Linux host using native MySQL 8.0, Systemd service for Spring Boot Java 17, and Host Nginx serving React static build.
+
+---
+
+### Step 0: Point Your Domain DNS (Common for Both Options)
+Log in to your DNS registrar (Cloudflare, GoDaddy, Namecheap, Hostinger) and create an **A Record**:
 - **Type:** `A`
-- **Name / Host:** `@` *(or subdomain like `apartment`)*
-- **Value:** `<YOUR_SERVER_IP>`
-- **TTL:** `Auto`
+- **Name / Host:** `@` *(for root domain)* or `apartment` *(for subdomain)*
+- **Value (IPv4):** `<YOUR_SERVER_PUBLIC_IP>`
+- **TTL:** `Auto` (or `300 seconds`)
 
-### Step 2: Install Docker on your VPS
-SSH into your server and run:
+---
+
+### Option A: Docker Compose Deployment (Recommended)
+
+#### 1. Install Docker on your VPS
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
+# Log out and log back in, or run:
+newgrp docker
 ```
 
-### Step 3: Clone & Start Application
+#### 2. Clone the Repository & Launch
 ```bash
 git clone https://github.com/Shammaz39/snns-apartment.git
 cd snns-apartment
 docker compose up -d --build
 ```
+*The stack will automatically spin up MySQL 8, build the Java 17 JAR, bundle the React UI, and launch on port 3000.*
 
-### Step 4: Configure HTTPS (Free SSL via Let's Encrypt)
-Install Host Nginx and Certbot:
+#### 3. Setup Host Nginx Reverse Proxy & Free SSL
+Install Nginx and Certbot:
 ```bash
 sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
 ```
@@ -236,7 +247,7 @@ server {
 }
 ```
 
-Enable the configuration and obtain SSL:
+Enable and acquire SSL:
 ```bash
 sudo ln -s /etc/nginx/sites-available/snns /etc/nginx/sites-enabled/
 sudo nginx -t
@@ -244,7 +255,217 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 ```
 
-Your platform is now securely accessible worldwide at **`https://yourdomain.com`**! 🚀
+---
+
+### Option B: Native VPS Deployment (Non-Docker)
+
+Deploy directly on Ubuntu 22.04 / 24.04 LTS without Docker containers.
+
+#### 1. Install Required System Packages
+```bash
+# Update package repositories
+sudo apt update && sudo apt upgrade -y
+
+# 1. Install Java 17 JDK & Maven
+sudo apt install -y openjdk-17-jdk maven
+
+# 2. Install MySQL Server 8.0
+sudo apt install -y mysql-server
+
+# 3. Install Node.js 22 LTS & Build tools
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# 4. Install Nginx & Certbot SSL
+sudo apt install -y nginx certbot python3-certbot-nginx git
+```
+
+Verify installed runtimes:
+```bash
+java -version    # OpenJDK 17
+mvn -v           # Apache Maven 3.x
+node -v          # v22.x
+mysql --version  # MySQL 8.x
+```
+
+#### 2. Setup Production MySQL Database
+Log into MySQL:
+```bash
+sudo mysql
+```
+
+Run the following SQL commands to provision the database and application user:
+```sql
+CREATE DATABASE snns_apartment_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER 'snns_user'@'localhost' IDENTIFIED BY 'StrongPassword123!';
+GRANT ALL PRIVILEGES ON snns_apartment_db.* TO 'snns_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+#### 3. Clone Repository & Setup Application Directory
+```bash
+sudo mkdir -p /var/www/snns-apartment
+sudo chown -R $USER:$USER /var/www/snns-apartment
+git clone https://github.com/Shammaz39/snns-apartment.git /var/www/snns-apartment
+cd /var/www/snns-apartment
+```
+
+Create uploads storage directory:
+```bash
+sudo mkdir -p /var/www/snns-apartment/uploads
+sudo chown -R $USER:$USER /var/www/snns-apartment/uploads
+sudo chmod -R 755 /var/www/snns-apartment/uploads
+```
+
+#### 4. Build & Package Spring Boot Backend
+```bash
+cd /var/www/snns-apartment/backend
+
+# Package Spring Boot application JAR
+mvn clean package -DskipTests
+```
+*The compiled runnable JAR will be located at `/var/www/snns-apartment/backend/target/snns-apartment-0.0.1-SNAPSHOT.jar`.*
+
+#### 5. Configure Backend as a Systemd Background Service
+Create a persistent Systemd daemon so the backend starts automatically on system boot and restarts on crashes:
+```bash
+sudo nano /etc/systemd/system/snns-backend.service
+```
+
+Paste the following service configuration:
+```ini
+[Unit]
+Description=SNNS Apartment Management Spring Boot Backend
+After=network.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/snns-apartment/backend
+
+# Environment Variables
+Environment=SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/snns_apartment_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+Environment=SPRING_DATASOURCE_USERNAME=snns_user
+Environment=SPRING_DATASOURCE_PASSWORD=StrongPassword123!
+Environment=FILE_UPLOAD_DIR=/var/www/snns-apartment/uploads
+Environment=SERVER_PORT=8080
+
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /var/www/snns-apartment/backend/target/snns-apartment-0.0.1-SNAPSHOT.jar
+
+SuccessExitStatus=143
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Reload Systemd daemon, enable, and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable snns-backend
+sudo systemctl start snns-backend
+```
+
+Check backend status:
+```bash
+sudo systemctl status snns-backend
+# View live application logs:
+# journalctl -u snns-backend -f
+```
+
+#### 6. Build the React Frontend
+```bash
+cd /var/www/snns-apartment/frontend
+npm install
+npm run build
+```
+*The compiled high-performance production assets will be generated in `/var/www/snns-apartment/frontend/dist`.*
+
+#### 7. Configure Nginx Web Server & Reverse Proxy
+Remove default Nginx welcome page and create a dedicated virtual host:
+```bash
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nano /etc/nginx/sites-available/snns-apartment
+```
+
+Paste the following Nginx configuration (replace `yourdomain.com` with your actual domain):
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # Maximum file upload size (Aadhaar KYC docs, payment receipts)
+    client_max_body_size 25M;
+
+    # 1. Frontend SPA Static Files (Vite Production Build)
+    root /var/www/snns-apartment/frontend/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 2. Uploaded Document & Photo Delivery
+    location /api/files/ {
+        alias /var/www/snns-apartment/uploads/;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # 3. REST API Reverse Proxy to Spring Boot (Port 8080)
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # 4. Interactive Swagger OpenAPI Docs
+    location /swagger-ui/ {
+        proxy_pass http://127.0.0.1:8080/swagger-ui/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location /v3/api-docs/ {
+        proxy_pass http://127.0.0.1:8080/v3/api-docs/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+Enable the configuration and reload Nginx:
+```bash
+sudo ln -s /etc/nginx/sites-available/snns-apartment /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+#### 8. Secure with HTTPS (Free Let's Encrypt SSL)
+```bash
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+*Certbot will automatically obtain the SSL certificates, configure HTTPS encryption, and setup an auto-renewal cron timer.*
+
+#### 9. Production Maintenance & Quick Commands
+| Task | Command |
+|---|---|
+| **View Backend Live Logs** | `journalctl -u snns-backend -f` |
+| **Restart Backend** | `sudo systemctl restart snns-backend` |
+| **Check Nginx Syntax** | `sudo nginx -t` |
+| **Reload Nginx Configuration** | `sudo systemctl reload nginx` |
+| **Re-deploy Frontend Changes** | `cd /var/www/snns-apartment/frontend && git pull && npm run build` |
+| **Re-deploy Backend Changes** | `cd /var/www/snns-apartment/backend && git pull && mvn package -DskipTests && sudo systemctl restart snns-backend` |
+| **Test SSL Auto-Renewal** | `sudo certbot renew --dry-run` |
 
 ---
 
